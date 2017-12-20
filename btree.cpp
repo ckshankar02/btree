@@ -82,7 +82,7 @@ bt_node* btree::insert_split(bt_node *nd, int key,
                      int value, bool &need_split) {
   
   int mid=0, sidx=0, eidx=nd->size()-2;//TBD
-
+	bt_node *
 
 	//Searching the bt_node for ptr for child node
   if(nd->entries[0].key > key) sidx = 0;
@@ -104,6 +104,7 @@ bt_node* btree::insert_split(bt_node *nd, int key,
     }
   }
 
+	//Insert key & value if at leaf node
   if(nd->is_leaf) {
     bt_node_entry *tmp_ent = new bt_node_entry;
     tmp_ent->ptr = NULL;
@@ -116,16 +117,19 @@ bt_node* btree::insert_split(bt_node *nd, int key,
     return nd;
   }
 
+	//Recursively find the leaf node
   need_split = false;
   insert_split(nd->entries[sidx+1].ptr, key, value, 
                                       need_split);
 
+	//Split the child node and add an entry 
   if(need_split){
     bt_node_entry *tmp_ent = NULL;
     bt_node *nw_node = new bt_node;
     bt_node *tmp = nd->entries[sidx+1].ptr;
     int split_size = (tmp->entries.size()-1)/2;
 
+		nw_node->is_leaf = tmp->is_leaf;
     for(int i=0;i<split_size;i++) {
       nw_node->entries.push_back(tmp->entries[i]);
     }
@@ -138,11 +142,43 @@ bt_node* btree::insert_split(bt_node *nd, int key,
     tmp_ent->value = -1;
     tmp_ent->ptr = nw_node;
     nd->entries.insert(nd->entries.begin()+sidx, tmp_ent);
+		if(nd->entries.size() <= degree) need_split = false;
   }
 
-	if(nd == root && 
-			nd->entries.size() > degree) {
+
+	//If root needs to split
+	if(nd == root && need_split) {
+		bt_node *nw_root = new bt_node;
+		bt_node *nw_node = new bt_node;
+		int split_size = (nd->entries.size-1)/2;
+		tmp->is_leaf = nd->is_leaf;
+
+		for(int i=0;i<split_size;i++){
+			nw_node->entries.push_back(nd->entries[i]);
+		}
+
+		nd->entries.erase(nd->entries.begin(),
+								nd->entries.begin()+split_size);
+
+		bt_node_entry *ent = new bt_node_entry;
+		ent_1->key = nd->entries[0].key;
+		ent_1->value = -1;
+		ent_1->ptr = nw_node;
+	
+		bt_node_entry *dummy = new bt_node_entry;
+		dummy->key = 0
+		dummy->value = 0;
+		dummy->ptr = nd;
+
+		nw_root.push_back(ent);
+		nw_root.push_back(dummy);
+		
+		root = nw_root;
+		need_split = false;	
+		return root;
 	}
+
+	return nd;
 }
 
 bool btree::insert_key(int key, int value) {
