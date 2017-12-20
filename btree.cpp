@@ -83,23 +83,27 @@ bt_node* btree::insert_split(bt_node *nd, int key,
   
   int mid=0, sidx=0, eidx=nd->size()-2;//TBD
 
+
+	//Searching the bt_node for ptr for child node
   if(nd->entries[0].key > key) sidx = 0;
   else if (nd->entries[nd->entries.size()-2].key < key) 
     sidx = nd->entries.size()-1;
   else {
     while(sidx < eidx) {
       mid = (sidx+eidx)/2;
-      //TBD - Need to handle '==' case
+   
       if(nd->entries[mid] == key) {
         sidx = mid+1;
         break;
       }
+
       if(nd->entries[mid].key < key) 
        sidx = mid;
       else 
         eidx = mid-1;
     }
   }
+
   if(nd->is_leaf) {
     bt_node_entry *tmp_ent = new bt_node_entry;
     tmp_ent->ptr = NULL;
@@ -121,9 +125,11 @@ bt_node* btree::insert_split(bt_node *nd, int key,
     bt_node *nw_node = new bt_node;
     bt_node *tmp = nd->entries[sidx+1].ptr;
     int split_size = (tmp->entries.size()-1)/2;
+
     for(int i=0;i<split_size;i++) {
       nw_node->entries.push_back(tmp->entries[i]);
     }
+
     tmp->entries.erase(tmp->entries.begin(), 
                  tmp->entries.begin()+split_size);
    
@@ -131,8 +137,12 @@ bt_node* btree::insert_split(bt_node *nd, int key,
     tmp_ent->key = tmp->entries[0].key;
     tmp_ent->value = -1;
     tmp_ent->ptr = nw_node;
-    nd->entries.insert(nd->entries.begin()+sidx);
+    nd->entries.insert(nd->entries.begin()+sidx, tmp_ent);
   }
+
+	if(nd == root && 
+			nd->entries.size() > degree) {
+	}
 }
 
 bool btree::insert_key(int key, int value) {
