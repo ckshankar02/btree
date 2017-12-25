@@ -1,103 +1,44 @@
 #include "btree.h"
+#include <vector>
 
 namespace bt{
 
-bool btree::btree(){
+btree::btree(){
+  degree = 3;
   root = NULL;
 }
-#if 0
-bt_node* btree::get_next_node(bt_node *nd, int key) {
-  int mid_idx = 0, st_idx = 0, end_idx = 0;
-  if(nd->kv[0].first > key) return nd->ptrs[0];
 
-  st_idx = 0;
-  end_idx = nd->keys.size()-1;
-
-  while(st_idx < end_idx) {
-    mid_idx = (st_idx + end_idx)/2;
-
-    if(nd->keys[mid_idx] == key)
-      return nd->ptrs[mid_idx+1];
- 
-    if(nd->keys[mid_idx] > key)
-      end_idx = mid_idx-1;
-    else 
-      st_idx = mid_idx;
-    
-  }
-
-  return nd->ptrs[st_idx];
-}
-
-bool btree::search_leaf(bt_node *nd, int key, int &value) {
-  int mid_idx = 0, st_idx = 0, end_idx = 0;
-  if(nd->keys.size() == 0) return false;
-  if(nd->keys.size() == 1) {
-    value = nd->values[0];
-    return true;
-  }
-
-  st_idx = 0;
-  end_idx = nd->keys.size()-1;
-
-  while(st_idx < end_idx) {
-    mid_idx = (st_idx+end_idx)/2;
-
-    if(nd->keys[mid_idx] == key) {
-      value = nd->values[mid_idx];
-      return true;
-    }
-
-    if(nd->keys[mid_idx] > key) {
-      end_idx = mid_idx-1;
-    } else {
-      st_idx = mid_idx+1;
+void btree::dump_tree(bt_node *tmp) {
+  if(tmp){
+    for(int i=0;i<tmp->entries.size();i++) {
+      std::cout<<tmp->entries[i]->key<<std::endl;
+      dump_tree((bt_node *)tmp->entries[i]->ptr);
     }
   }
-
-  if(nd->keys[st_idx] == key) {
-    value = nd->values[st_idx];
-    return true;
-  }
-  
-  return false;
 }
 
-bool btree::search_key(int key, int &value) {
-  bt_node *tmp; 
-
-  //btree empty
-  if(!root) return false;
-
-  tmp = root;
-  while(!tmp->is_leaf){
-    tmp = get_next_node(tmp, key);
-  }
-
-  return search_leaf(tmp, key, value);
-}
-#endif
 
 bt_node* btree::insert_split(bt_node *nd, int key, 
                      int value, bool &need_split) {
   
-  int mid=0, sidx=0, eidx=nd->size()-2;//TBD
-	bt_node *
+  int mid=0, sidx=0, eidx=(nd->entries.size()-2);//TBD
+  bt_node_entry *dummy = NULL;
+
 
 	//Searching the bt_node for ptr for child node
-  if(nd->entries[0].key > key) sidx = 0;
-  else if (nd->entries[nd->entries.size()-2].key < key) 
+  if(nd->entries[0]->key > key) sidx = 0;
+  else if (nd->entries[nd->entries.size()-2]->key < key) 
     sidx = nd->entries.size()-1;
   else {
     while(sidx < eidx) {
       mid = (sidx+eidx)/2;
    
-      if(nd->entries[mid] == key) {
+      if(nd->entries[mid]->key == key) {
         sidx = mid+1;
         break;
       }
 
-      if(nd->entries[mid].key < key) 
+      if(nd->entries[mid]->key < key) 
        sidx = mid+1; //MONITOR
       else 
         eidx = mid-1;
@@ -117,33 +58,35 @@ bt_node* btree::insert_split(bt_node *nd, int key,
   else {
 	  //Recursively find the leaf node
     need_split = false;
-    insert_split(nd->entries[sidx].ptr, key, value, 
-  }                                     need_split); //MONITOR
+    insert_split((bt_node*)nd->entries[sidx]->ptr, key, value, 
+                                       need_split); //MONITOR
 
+  }
 	//Split the child node and add an entry 
   if(need_split && !nd->is_leaf){
     bt_node_entry *tmp_ent = NULL;
     bt_node *nw_node = new bt_node;
-    bt_node *tmp = nd->entries[sidx].ptr;
+    bt_node *tmp = (bt_node*)nd->entries[sidx]->ptr;
     int split_size = (tmp->entries.size()-1)/2;
 
 		nw_node->is_leaf = tmp->is_leaf;
     for(int i=0;i<split_size;i++) {
       nw_node->entries.push_back(tmp->entries[i]);
     }
+
 	  dummy = new bt_node_entry;
-		dummy->key = 0
-		dummy->value = 0;
-		dummy->ptr = tmp;
+		dummy->key = -1;
+		dummy->value = -1;
+		dummy->ptr = (void *)tmp;
     nw_node->entries.push_back(dummy);
 
     tmp->entries.erase(tmp->entries.begin(), 
                  tmp->entries.begin()+split_size);
    
     tmp_ent = new bt_node_entry;
-    tmp_ent->key = tmp->entries[0].key;
+    tmp_ent->key = tmp->entries[0]->key;
     tmp_ent->value = -1;
-    tmp_ent->ptr = nw_node;
+    tmp_ent->ptr = (void *)nw_node;
     nd->entries.insert(nd->entries.begin()+sidx, tmp_ent);
 		if(nd->entries.size() <= degree) need_split = false;
   }
@@ -154,36 +97,35 @@ bt_node* btree::insert_split(bt_node *nd, int key,
 		bt_node *nw_root = new bt_node;
 		bt_node *nw_node = new bt_node;
 		bt_node_entry *dummy = NULL;
-    int split_size = (nd->entries.size-1)/2;
+    int split_size = (nd->entries.size()-1)/2;
 
-
-    tmp->is_leaf = nd->is_leaf;
+    nw_node->is_leaf = nd->is_leaf;
 
 		for(int i=0;i<split_size;i++){
 			nw_node->entries.push_back(nd->entries[i]);
 		}
 
 	  dummy = new bt_node_entry;
-		dummy->key = 0
-		dummy->value = 0;
-		dummy->ptr = nd;
+		dummy->key = -1;
+		dummy->value = -1;
+		dummy->ptr = (void *)nd;
     nw_node->entries.push_back(dummy);
 
 		nd->entries.erase(nd->entries.begin(),
 								nd->entries.begin()+split_size);
 
-		bt_node_entry *ent = new bt_node_entry;
-		ent_1->key = nd->entries[0].key;
+		bt_node_entry *ent_1 = new bt_node_entry;
+		ent_1->key = nd->entries[0]->key;
 		ent_1->value = -1;
-		ent_1->ptr = nw_node;
+		ent_1->ptr = (void *)nw_node;
 	
 	  dummy = new bt_node_entry;
-		dummy->key = 0
-		dummy->value = 0;
-		dummy->ptr = nd;
+		dummy->key = -1;
+		dummy->value = -1;
+		dummy->ptr = (void *)nd;
 
-		nw_root.push_back(ent);
-		nw_root.push_back(dummy);
+		nw_root->entries.push_back(ent_1);
+		nw_root->entries.push_back(dummy);
 		
 		root = nw_root;
 		need_split = false;	
@@ -209,7 +151,7 @@ bool btree::insert_key(int key, int value) {
     bt_node_entry *dummy = new bt_node_entry;
     dummy->key = -1;
     dummy->value = -1;
-    dummy->ptr = NULL:
+    dummy->ptr = NULL;
     tmp->entries.push_back(dummy);
     root = tmp;
     return true;
@@ -221,4 +163,20 @@ bool btree::insert_key(int key, int value) {
 bool btree::delete_key(int key) {
 }
 
+bt_node* btree::get_root() {
+  return root;
+}
+
 };
+
+using namespace bt;
+
+int main() {
+  btree *bt_n = new btree();
+  bt_n->insert_key(7, 1);
+  bt_n->insert_key(1, 1);
+  bt_n->insert_key(3, 1);
+//  bt_n->insert_key(9, 1);
+  bt_n->dump_tree(bt_n->get_root());
+  return 0;
+}
